@@ -1,2 +1,2 @@
 # bybylaucherjava
-You can pull request to have me repo. Thank you so much.
+You can pull request or isuess to have me repo. Thank you so much.
