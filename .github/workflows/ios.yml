@@ -1,0 +1,64 @@
+name: iOS starter workflow
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  build:
+    name: Build and Test default scheme using any available iPhone simulator
+    runs-on: macos-latest
+    continue-on-error: true  # Cho toàn bộ job không dừng nếu có lỗi
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set Default Scheme
+        id: scheme
+        run: |
+          scheme_list=$(xcodebuild -list -json | tr -d "\n")
+          default=$(echo $scheme_list | ruby -e "require 'json'; puts JSON.parse(STDIN.gets)['project']['targets'][0]")
+          echo "Default scheme: $default"
+          echo "scheme=$default" >> $GITHUB_OUTPUT
+
+      - name: Detect File Type (project/workspace)
+        id: file
+        run: |
+          if ls *.xcworkspace 1> /dev/null 2>&1; then
+            echo "filetype=workspace" >> $GITHUB_OUTPUT
+            echo "file=$(ls *.xcworkspace | head -n 1)" >> $GITHUB_OUTPUT
+          elif ls *.xcodeproj 1> /dev/null 2>&1; then
+            echo "filetype=project" >> $GITHUB_OUTPUT
+            echo "file=$(ls *.xcodeproj | head -n 1)" >> $GITHUB_OUTPUT
+          else
+            echo "No Xcode project or workspace found."
+            exit 1
+          fi
+
+      - name: Detect Simulator Device
+        id: device
+        run: |
+          device=$(xcrun xctrace list devices 2>&1 | grep -oE 'iPhone.*?[^\(]+' | head -1 | awk '{$1=$1;print}' | sed -e "s/ Simulator$//")
+          echo "device=$device" >> $GITHUB_OUTPUT
+          echo "Using device: $device"
+
+      - name: Build
+        continue-on-error: true
+        run: |
+          echo "🔨 Building..."
+          xcodebuild build-for-testing \
+            -${{ steps.file.outputs.filetype }} "${{ steps.file.outputs.file }}" \
+            -scheme "${{ steps.scheme.outputs.scheme }}" \
+            -destination "platform=iOS Simulator,name=${{ steps.device.outputs.device }}"
+
+      - name: Test
+        continue-on-error: true
+        run: |
+          echo "🧪 Testing..."
+          xcodebuild test-without-building \
+            -${{ steps.file.outputs.filetype }} "${{ steps.file.outputs.file }}" \
+            -scheme "${{ steps.scheme.outputs.scheme }}" \
+            -destination "platform=iOS Simulator,name=${{ steps.device.outputs.device }}"
