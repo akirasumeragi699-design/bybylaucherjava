@@ -1,27 +1,31 @@
 #import "DYNAMIC_LOADER.h"
+#include <sys/mman.h>
+#include <string.h>
+#include <ffi.h>
 
 @implementation DynamicLoader
 
-+ (void*)loadCode:(const void*)code size:(size_t)size {
-    // Cấp phát bộ nhớ có thể ghi (không dùng PROT_EXEC do hạn chế iOS)
-    void* mem = mmap(NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
++ (void *)loadCode:(const void *)code size:(size_t)size {
+    if (!code || size == 0) return NULL;
+
+    void *mem = mmap(NULL, size, PROT_READ | PROT_WRITE | PROT_EXEC,
+                     MAP_ANON | MAP_PRIVATE, -1, 0);
+
     if (mem == MAP_FAILED) return NULL;
-    
-    // Copy code vào vùng nhớ (mô phỏng quá trình nạp code)
+
     memcpy(mem, code, size);
-    
-    // Lưu ý: Trên iOS thường không thể set PROT_EXEC
     return mem;
 }
 
-+ (void)callFunction:(void*)func args:(void**)args {
++ (void)callFunction:(void *)func args:(void **)args {
+    if (!func) return;
+
     ffi_cif cif;
-    ffi_type* argTypes[] = { &ffi_type_pointer }; // Giả sử hàm nhận 1 tham số
-    void* values[] = { args[0] };
-    
-    // Thiết lập và gọi hàm thông qua libffi
+    ffi_type *argTypes[] = { &ffi_type_pointer };
+    void *values[] = { args };
+
     if (ffi_prep_cif(&cif, FFI_DEFAULT_ABI, 1, &ffi_type_void, argTypes) == FFI_OK) {
-        ffi_call(&cif, (void (*)(void))func, NULL, values);
+        ffi_call(&cif, FFI_FN(func), NULL, values);
     }
 }
 
