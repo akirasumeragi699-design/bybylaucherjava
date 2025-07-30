@@ -16,6 +16,8 @@
 		202648A82E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202648A72E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift */; };
 		202648B62E37A2F500B9E39F /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B52E37A2F500B9E39F /* AuthenticationServices.framework */; };
 		202648B82E37A30300B9E39F /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B72E37A30300B9E39F /* UniformTypeIdentifiers.framework */; };
+		A1B2C3D4E5F6G7H800000004 /* DymanicLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */; };
+		A1B2C3D4E5F6G7H800000005 /* FAKE_JNI_LOADER.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
