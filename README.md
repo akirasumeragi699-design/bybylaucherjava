@@ -13,13 +13,13 @@
 
 ### ✅ Option 1: Install via AltStore  
 **EN:**  
-1. Download the `.ipa` file from the [Releases](https://github.com/your-repo/releases) section.  
+1. Download the `.ipa` file from the [Releases](https://github.com/akirasumeragi699-design/bybylaucherjava/releases) section.  
 2. Open **AltStore** on your iPhone or iPad.  
 3. Tap the `+` icon and choose the downloaded `.ipa` file.  
 4. Wait for the installation to complete.
 
 **VI:**  
-1. Tải file `.ipa` từ phần [Releases](https://github.com/your-repo/releases).  
+1. Tải file `.ipa` từ phần [Releases](https://github.com/akirasumeragi699-design/bybylaucherjava/releases).  
 2. Mở **AltStore** trên iPhone hoặc iPad.  
 3. Nhấn biểu tượng `+` và chọn file `.ipa` vừa tải về.  
 4. Chờ ứng dụng được cài đặt xong.
@@ -28,11 +28,11 @@
 
 ### 🔓 Option 2: Install via TrollStore  
 **EN:**  
-1. Download the `.ipa` from [Releases](https://github.com/your-repo/releases) or build it from source.  
+1. Download the `.ipa` from [Releases](https://github.com/akirasumeragi699-design/bybylaucherjava/releases) or build it from source.  
 2. Open **TrollStore**, choose the `.ipa`, and install.
 
 **VI:**  
-1. Tải file `.ipa` từ phần [Releases](https://github.com/your-repo/releases) hoặc tự build từ mã nguồn.  
+1. Tải file `.ipa` từ phần [Releases](https://github.com/akirasumeragi699-design/bybylaucherjava/releases) hoặc tự build từ mã nguồn.  
 2. Mở **TrollStore**, chọn file `.ipa` và cài đặt.
 
 ---
