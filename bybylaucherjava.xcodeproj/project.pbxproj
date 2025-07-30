@@ -16,6 +16,8 @@
 		202648A82E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202648A72E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift */; };
 		202648B62E37A2F500B9E39F /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B52E37A2F500B9E39F /* AuthenticationServices.framework */; };
 		202648B82E37A30300B9E39F /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B72E37A30300B9E39F /* UniformTypeIdentifiers.framework */; };
+		A1B2C3D4E5F6G7H800000004 /* DymanicLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */; };
+		A1B2C3D4E5F6G7H800000005 /* FAKE_JNI_LOADER.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,6 +52,9 @@
 		202648B72E37A30300B9E39F /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
 		5D927DC0313378DA0EA96447 /* Pods-bybylaucherjava.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-bybylaucherjava.debug.xcconfig"; path = "Target Support Files/Pods-bybylaucherjava/Pods-bybylaucherjava.debug.xcconfig"; sourceTree = "<group>"; };
 		8BB13A6A192CC148B83803C0 /* Pods-bybylaucherjava.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-bybylaucherjava.release.xcconfig"; path = "Target Support Files/Pods-bybylaucherjava/Pods-bybylaucherjava.release.xcconfig"; sourceTree = "<group>"; };
+		A1B2C3D4E5F6G7H800000001 /* DymanicLoader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DymanicLoader.h; sourceTree = "<group>"; };
+		A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DymanicLoader.m; sourceTree = "<group>"; };
+		A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FAKE_JNI_LOADER.m; sourceTree = "<group>"; };
 		EB464C90C17CDAE712C1E93F /* Pods_bybylaucherjava.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_bybylaucherjava.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -110,6 +115,9 @@
 				2026488A2E37A0F900B9E39F /* bybylaucherjavaApp.swift */,
 				2026488E2E37A0FB00B9E39F /* Assets.xcassets */,
 				202648902E37A0FB00B9E39F /* Preview Content */,
+				A1B2C3D4E5F6G7H800000001 /* DymanicLoader.h */,
+				A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */,
+				A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */,
 			);
 			path = bybylaucherjava;
 			sourceTree = "<group>";
@@ -334,6 +342,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				2026488B2E37A0F900B9E39F /* bybylaucherjavaApp.swift in Sources */,
+				A1B2C3D4E5F6G7H800000004 /* DymanicLoader.m in Sources */,
+    				A1B2C3D4E5F6G7H800000005 /* FAKE_JNI_LOADER.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

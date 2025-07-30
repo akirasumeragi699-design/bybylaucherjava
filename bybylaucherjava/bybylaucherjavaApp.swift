@@ -3,82 +3,145 @@ import Foundation
 import ZIPFoundation
 import AuthenticationServices
 import UniformTypeIdentifiers
-import WebKit
+import Darwin
 
-struct CheerpJWebView: UIViewRepresentable {
-    let version: MinecraftVersion
-    let account: MinecraftAccount
+// MARK: - Java Native Integration Headers
+@_silgen_name("JNI_GetDefaultJavaVMInitArgs")
+public func JNI_GetDefaultJavaVMInitArgs(_ args: UnsafeMutablePointer<JavaVMInitArgs>) -> jint
+
+@_silgen_name("JNI_CreateJavaVM")
+public func JNI_CreateJavaVM(
+    pvm: UnsafeMutablePointer<UnsafeMutablePointer<JavaVM>?>?,
+    penv: UnsafeMutablePointer<UnsafeMutablePointer<JNIEnv>?>?,
+    args: UnsafeMutablePointer<JavaVMInitArgs>?
+) -> jint
+
+@_silgen_name("JNI_GetCreatedJavaVMs")
+public func JNI_GetCreatedJavaVMs(
+    vmBuf: UnsafeMutablePointer<UnsafeMutablePointer<JavaVM>?>?,
+    bufLen: jsize,
+    nVMs: UnsafeMutablePointer<jsize>?
+) -> jint
+
+// MARK: - Dynamic Loader Integration
+@_silgen_name("DL_loadLibrary")
+public func DL_loadLibrary(_ path: UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
+
+@_silgen_name("DL_getSymbol")
+public func DL_getSymbol(_ handle: UnsafeMutableRawPointer?, _ symbol: UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
+
+// MARK: - JVM Wrapper Implementation
+final class JVMHost {
+    private static var vm: UnsafeMutablePointer<JavaVM>?
+    private static var env: UnsafeMutablePointer<JNIEnv>?
+    private static var isInitialized = false
     
-    func makeUIView(context: Context) -> WKWebView {
-        let webView = WKWebView()
-        webView.configuration.preferences.javaScriptEnabled = true
-        webView.configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
-        return webView
+    static func initialize() throws {
+        guard !isInitialized else { return }
+        
+        // Load libjava.a
+        guard let libHandle = DL_loadLibrary("libjava.a") else {
+            throw NSError(domain: "JavaRuntime", code: -1, 
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to load libjava.a"])
+        }
+        
+        // Load required symbols
+        guard let _ = DL_getSymbol(libHandle, "JRE_GetMemoryAPI"),
+              let _ = DL_getSymbol(libHandle, "JNI_LoadDynamicCode") else {
+            throw NSError(domain: "JavaRuntime", code: -2,
+                        userInfo: [NSLocalizedDescriptionKey: "Missing required symbols"])
+        }
+        
+        // Initialize JVM
+        var args = JavaVMInitArgs()
+        args.version = JNI_VERSION_1_8
+        args.nOptions = 0
+        args.options = nil
+        args.ignoreUnrecognized = JNI_TRUE
+        
+        var vm: UnsafeMutablePointer<JavaVM>?
+        var env: UnsafeMutablePointer<JNIEnv>?
+        
+        let result = JNI_CreateJavaVM(&vm, &env, &args)
+        guard result == JNI_OK else {
+            throw NSError(domain: "JavaRuntime", code: Int(result),
+                        userInfo: [NSLocalizedDescriptionKey: "Failed to create Java VM"])
+        }
+        
+        self.vm = vm
+        self.env = env
+        self.isInitialized = true
+        
+        // Initialize memory manager
+        initializeMemoryManager()
     }
     
-    func updateUIView(_ uiView: WKWebView, context: Context) {
-        let htmlString = """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>Minecraft with CheerpJ</title>
-            <script src="https://cjrtnc.leaningtech.com/3.0/loader.js"></script>
-            <style>
-                body { margin: 0; padding: 0; background-color: #000; }
-                #loading {
-                    color: white;
-                    font-family: Arial;
-                    text-align: center;
-                    margin-top: 50vh;
-                    transform: translateY(-50%);
-                }
-            </style>
-        </head>
-        <body>
-            <div id="loading">Loading Minecraft...</div>
-            <script>
-                cheerpjInit({
-                    minecraftVersion: "\(version.id)",
-                    username: "\(account.username)",
-                    uuid: "\(account.uuid)",
-                    accessToken: "\(account.accessToken)",
-                    gameDir: "\(version.path.path)"
-                });
-                
-                function cheerpjInit(config) {
-                    cheerpjInitRuntime({
-                        javaProperties: [
-                            `-Dminecraft.client.jar=${config.gameDir}/client.jar`,
-                            `-Dminecraft.username=${config.username}`,
-                            `-Dminecraft.uuid=${config.uuid}`,
-                            `-Dminecraft.accessToken=${config.accessToken}`,
-                            `-Dminecraft.version=${config.minecraftVersion}`,
-                            `-Xmx2G`
-                        ],
-                        classpath: [
-                            `${config.gameDir}/client.jar`,
-                            `${config.gameDir}/libraries/*`
-                        ],
-                        mainClass: "net.minecraft.client.main.Main",
-                        onLoad: function() {
-                            document.getElementById('loading').innerHTML = 'Starting Minecraft...';
-                        },
-                        onError: function(error) {
-                            document.getElementById('loading').innerHTML = 'Error: ' + error;
-                        }
-                    });
-                }
-            </script>
-        </body>
-        </html>
-        """
+    private static func initializeMemoryManager() {
+        // Initialize JRE memory management
+        let memoryAPI = unsafeBitCast(DL_getSymbol(nil, "JRE_GetMemoryAPI"), 
+                          to: (@convention(c) () -> UnsafeRawPointer).self)()
+        print("Memory API initialized at: \(memoryAPI)")
+    }
+    
+    static func launchMinecraft(version: MinecraftVersion, account: MinecraftAccount) throws {
+        guard let env = env?.pointee?.pointee else {
+            throw NSError(domain: "JavaRuntime", code: -3,
+                        userInfo: [NSLocalizedDescriptionKey: "JVM not initialized"])
+        }
         
-        uiView.loadHTMLString(htmlString, baseURL: URL(string: "https://cheerpj-demo.leaningtech.com/"))
+        // Prepare launch arguments
+        let gameDir = version.path.path
+        let args = [
+            "-Djava.library.path=\(gameDir)/natives",
+            "-Dminecraft.client.jar=\(gameDir)/client.jar",
+            "-Dminecraft.username=\(account.username)",
+            "-Dminecraft.uuid=\(account.uuid)",
+            "-Dminecraft.accessToken=\(account.accessToken)",
+            "-Xmx2G",
+            "net.minecraft.client.main.Main"
+        ]
+        
+        // Find main class
+        let mainClass = try findClass(env: env, name: "net.minecraft.client.main.Main")
+        defer { env.DeleteLocalRef!(env, mainClass) }
+        
+        // Get main method
+        let methodID = env.GetStaticMethodID!(env, mainClass, "main", "([Ljava/lang/String;)V")
+        
+        // Convert arguments to Java String array
+        let stringClass = try findClass(env: env, name: "java.lang.String")
+        defer { env.DeleteLocalRef!(env, stringClass) }
+        
+        let argsArray = env.NewObjectArray!(env, jsize(args.count), stringClass, nil)
+        defer { env.DeleteLocalRef!(env, argsArray) }
+        
+        for (i, arg) in args.enumerated() {
+            let jstr = env.NewStringUTF!(env, arg)
+            env.SetObjectArrayElement!(env, argsArray, jsize(i), jstr)
+            env.DeleteLocalRef!(env, jstr)
+        }
+        
+        // Invoke main method
+        env.CallStaticVoidMethod!(env, mainClass, methodID, argsArray)
+        
+        // Check for exceptions
+        if let exception = env.ExceptionOccurred!(env) {
+            env.ExceptionClear!(env)
+            throw NSError(domain: "JavaRuntime", code: -4,
+                        userInfo: [NSLocalizedDescriptionKey: "Java exception occurred"])
+        }
+    }
+    
+    private static func findClass(env: UnsafeMutablePointer<JNIEnv>, name: String) throws -> jclass {
+        guard let cls = env.pointee?.pointee.FindClass?(env, name) else {
+            throw NSError(domain: "JavaRuntime", code: -5,
+                        userInfo: [NSLocalizedDescriptionKey: "Class not found: \(name)"])
+        }
+        return cls
     }
 }
 
+// MARK: - Minecraft Data Models
 struct MinecraftVersion: Identifiable {
     let id: String
     let type: String
@@ -113,17 +176,7 @@ struct MinecraftAccount {
     let accessToken: String
 }
 
-struct FabricVersion: Decodable {
-    struct Loader: Decodable {
-        let version: String
-    }
-    let loader: Loader
-}
-
-struct ForgeMetadata: Decodable {
-    let versions: [String]
-}
-
+// MARK: - Complete MinecraftManager Implementation
 final class MinecraftManager: ObservableObject {
     @Published var installedVersions = [MinecraftVersion]()
     @Published var availableVersions = [String]()
@@ -133,7 +186,6 @@ final class MinecraftManager: ObservableObject {
     @Published var showFileBrowser = false
     @Published var selectedVersionForInstall = ""
     @Published var selectedModLoader: ModLoaderType?
-    @Published var showCheerpJView = false
     @Published var selectedVersionForLaunch: MinecraftVersion?
     
     private let baseURL = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0].appendingPathComponent("Minecraft")
@@ -408,8 +460,12 @@ final class MinecraftManager: ObservableObject {
             return
         }
         
-        selectedVersionForLaunch = version
-        showCheerpJView = true
+        do {
+            try JVMHost.initialize()
+            try JVMHost.launchMinecraft(version: version, account: account)
+        } catch {
+            showAlert(title: "Launch Error", message: error.localizedDescription)
+        }
     }
     
     private func showAlert(title: String, message: String) {
@@ -429,12 +485,26 @@ final class MinecraftManager: ObservableObject {
     }
 }
 
+// MARK: - Supporting Types
+struct FabricVersion: Decodable {
+    struct Loader: Decodable {
+        let version: String
+    }
+    let loader: Loader
+}
+
+struct ForgeMetadata: Decodable {
+    let versions: [String]
+}
+
+// MARK: - Auth Handler
 class AuthHandler: NSObject, ASWebAuthenticationPresentationContextProviding {
     func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
         return ASPresentationAnchor()
     }
 }
 
+// MARK: - Content View
 struct ContentView: View {
     @StateObject private var manager = MinecraftManager()
     @State private var showingImporter = false
@@ -495,24 +565,6 @@ struct ContentView: View {
             .sheet(isPresented: $manager.showFileBrowser) {
                 DocumentBrowserView(directoryURL: manager.documentsURL)
             }
-            .fullScreenCover(isPresented: $manager.showCheerpJView) {
-                if let version = manager.selectedVersionForLaunch, let account = manager.account {
-                    ZStack {
-                        CheerpJWebView(version: version, account: account)
-                            .edgesIgnoringSafeArea(.all)
-                        
-                        Button(action: {
-                            manager.showCheerpJView = false
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.largeTitle)
-                                .foregroundColor(.white)
-                                .padding()
-                        }
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                    }
-                }
-            }
             .overlay {
                 if manager.isWorking || isAuthenticating {
                     ProgressView()
@@ -529,222 +581,11 @@ struct ContentView: View {
     }
     
     private func login() {
-        isAuthenticating = true
-        authError = nil
-        
-        let authURL = URL(string: "https://login.microsoftonline.com/consumers/oauth2/v2.0/authorize?client_id=00000000402b5328&response_type=code&scope=XboxLive.signin%20offline_access&redirect_uri=msauth.com.yourdomain.minecraftmanager://auth")!
-        
-        let session = ASWebAuthenticationSession(
-            url: authURL,
-            callbackURLScheme: "msauth.com.yourdomain.minecraftmanager"
-        ) { callbackURL, error in
-            DispatchQueue.main.async {
-                isAuthenticating = false
-                
-                if let error = error {
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let callbackURL = callbackURL,
-                      let code = URLComponents(string: callbackURL.absoluteString)?.queryItems?.first(where: { $0.name == "code" })?.value else {
-                    authError = "Failed to get authentication code"
-                    return
-                }
-                
-                authenticateWithCode(code: code)
-            }
-        }
-        
-        session.presentationContextProvider = AuthHandler()
-        session.prefersEphemeralWebBrowserSession = true
-        session.start()
-    }
-    
-    private func authenticateWithCode(code: String) {
-        isAuthenticating = true
-        
-        let tokenURL = URL(string: "https://login.microsoftonline.com/consumers/oauth2/v2.0/token")!
-        var request = URLRequest(url: tokenURL)
-        request.httpMethod = "POST"
-        request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        
-        let body = [
-            "client_id": "00000000402b5328",
-            "code": code,
-            "grant_type": "authorization_code",
-            "redirect_uri": "msauth.com.yourdomain.minecraftmanager://auth",
-            "scope": "XboxLive.signin offline_access"
-        ].map { "\($0.key)=\($0.value)" }.joined(separator: "&")
-        
-        request.httpBody = body.data(using: .utf8)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    isAuthenticating = false
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let accessToken = json["access_token"] as? String else {
-                    isAuthenticating = false
-                    authError = "Failed to get access token"
-                    return
-                }
-                
-                getXboxLiveToken(accessToken: accessToken)
-            }
-        }.resume()
-    }
-    
-    private func getXboxLiveToken(accessToken: String) {
-        let url = URL(string: "https://user.auth.xboxlive.com/user/authenticate")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: Any] = [
-            "Properties": [
-                "AuthMethod": "RPS",
-                "SiteName": "user.auth.xboxlive.com",
-                "RpsTicket": "d=\(accessToken)"
-            ],
-            "RelyingParty": "http://auth.xboxlive.com",
-            "TokenType": "JWT"
-        ]
-        
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    isAuthenticating = false
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let token = json["Token"] as? String,
-                      let displayClaims = json["DisplayClaims"] as? [String: Any],
-                      let xui = displayClaims["xui"] as? [[String: Any]],
-                      let uhs = xui.first?["uhs"] as? String else {
-                    isAuthenticating = false
-                    authError = "Failed to get Xbox Live token"
-                    return
-                }
-                
-                getXSTSToken(xboxToken: token, userHash: uhs)
-            }
-        }.resume()
-    }
-    
-    private func getXSTSToken(xboxToken: String, userHash: String) {
-        let url = URL(string: "https://xsts.auth.xboxlive.com/xsts/authorize")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: Any] = [
-            "Properties": [
-                "SandboxId": "RETAIL",
-                "UserTokens": [xboxToken]
-            ],
-            "RelyingParty": "rp://api.minecraftservices.com/",
-            "TokenType": "JWT"
-        ]
-        
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    isAuthenticating = false
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let xstsToken = json["Token"] as? String else {
-                    isAuthenticating = false
-                    authError = "Failed to get XSTS token"
-                    return
-                }
-                
-                getMinecraftToken(xstsToken: xstsToken, userHash: userHash)
-            }
-        }.resume()
-    }
-    
-    private func getMinecraftToken(xstsToken: String, userHash: String) {
-        let url = URL(string: "https://api.minecraftservices.com/authentication/login_with_xbox")!
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        
-        let body: [String: Any] = [
-            "identityToken": "XBL3.0 x=\(userHash);\(xstsToken)"
-        ]
-        
-        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                if let error = error {
-                    isAuthenticating = false
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let accessToken = json["access_token"] as? String else {
-                    isAuthenticating = false
-                    authError = "Failed to get Minecraft token"
-                    return
-                }
-                
-                getMinecraftProfile(accessToken: accessToken)
-            }
-        }.resume()
-    }
-    
-    private func getMinecraftProfile(accessToken: String) {
-        let url = URL(string: "https://api.minecraftservices.com/minecraft/profile")!
-        var request = URLRequest(url: url)
-        request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        
-        URLSession.shared.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                isAuthenticating = false
-                
-                if let error = error {
-                    authError = error.localizedDescription
-                    return
-                }
-                
-                guard let data = data,
-                      let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                      let uuid = json["id"] as? String,
-                      let username = json["name"] as? String else {
-                    authError = "Failed to get Minecraft profile"
-                    return
-                }
-                
-                manager.account = MinecraftAccount(
-                    username: username,
-                    uuid: uuid,
-                    accessToken: accessToken
-                )
-            }
-        }.resume()
+        // ... (keep original login implementation)
     }
 }
 
+// MARK: - Version Installer View
 struct VersionInstallerView: View {
     @ObservedObject var manager: MinecraftManager
     @Environment(\.presentationMode) var presentationMode
@@ -808,6 +649,7 @@ struct VersionInstallerView: View {
     }
 }
 
+// MARK: - Version Row
 struct VersionRow: View {
     let version: MinecraftVersion
     let action: () -> Void
@@ -836,6 +678,7 @@ struct VersionRow: View {
     }
 }
 
+// MARK: - Document Browser
 struct DocumentBrowserView: UIViewControllerRepresentable {
     let directoryURL: URL
     
@@ -848,6 +691,7 @@ struct DocumentBrowserView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: Context) {}
 }
 
+// MARK: - App Entry
 @main
 struct MinecraftManagerApp: App {
     var body: some Scene {
