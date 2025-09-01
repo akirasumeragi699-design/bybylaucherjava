@@ -1,10 +1,23 @@
+// dynamicloader.h
 #import <Foundation/Foundation.h>
-#include <sys/mman.h>
-#include <ffi.h>
 
-@interface DynamicLoader : NSObject
+NS_ASSUME_NONNULL_BEGIN
 
-+ (void*)loadCode:(const void*)code size:(size_t)size;
-+ (void)callFunction:(void*)func args:(void**)args;
+#ifdef __cplusplus
+extern "C" {
+#endif
 
-@end
+// Tạo dynamic object với danh sách method
+id createDynamicObject(NSArray<NSString*>* methods);
+
+// Gọi method bất kỳ trên object dynamic
+void callDynamicMethod(id obj, NSString *selName);
+
+// Register callback cho method dynamic
+void registerCallbackForMethod(NSString *methodName, void (^callback)(id));
+
+#ifdef __cplusplus
+}
+#endif
+
+NS_ASSUME_NONNULL_END
