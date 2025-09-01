@@ -35,61 +35,56 @@ final class JVMHost {
     private static var vm: UnsafeMutablePointer<JavaVM>?
     private static var env: UnsafeMutablePointer<JNIEnv>?
     private static var isInitialized = false
-    
+
     static func initialize() throws {
         guard !isInitialized else { return }
-        
-        // Load libjava.a
+
         guard let libHandle = DL_loadLibrary("libjava.a") else {
-            throw NSError(domain: "JavaRuntime", code: -1, 
-                        userInfo: [NSLocalizedDescriptionKey: "Failed to load libjava.a"])
+            throw NSError(domain: "JavaRuntime", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to load libjava.a"])
         }
-        
-        // Load required symbols
+
         guard let _ = DL_getSymbol(libHandle, "JRE_GetMemoryAPI"),
               let _ = DL_getSymbol(libHandle, "JNI_LoadDynamicCode") else {
             throw NSError(domain: "JavaRuntime", code: -2,
-                        userInfo: [NSLocalizedDescriptionKey: "Missing required symbols"])
+                          userInfo: [NSLocalizedDescriptionKey: "Missing required symbols"])
         }
-        
-        // Initialize JVM
+
         var args = JavaVMInitArgs()
         args.version = JNI_VERSION_1_8
         args.nOptions = 0
         args.options = nil
         args.ignoreUnrecognized = JNI_TRUE
-        
+
         var vm: UnsafeMutablePointer<JavaVM>?
         var env: UnsafeMutablePointer<JNIEnv>?
-        
+
         let result = JNI_CreateJavaVM(&vm, &env, &args)
         guard result == JNI_OK else {
             throw NSError(domain: "JavaRuntime", code: Int(result),
-                        userInfo: [NSLocalizedDescriptionKey: "Failed to create Java VM"])
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to create Java VM"])
         }
-        
+
         self.vm = vm
         self.env = env
         self.isInitialized = true
-        
+
         // Initialize memory manager
         initializeMemoryManager()
     }
-    
+
     private static func initializeMemoryManager() {
-        // Initialize JRE memory management
-        let memoryAPI = unsafeBitCast(DL_getSymbol(nil, "JRE_GetMemoryAPI"), 
-                          to: (@convention(c) () -> UnsafeRawPointer).self)()
+        guard let memorySymbol = DL_getSymbol(nil, "JRE_GetMemoryAPI") else { return }
+        let memoryAPI = unsafeBitCast(memorySymbol, to: (@convention(c) () -> UnsafeRawPointer).self)()
         print("Memory API initialized at: \(memoryAPI)")
     }
-    
+
     static func launchMinecraft(version: MinecraftVersion, account: MinecraftAccount) throws {
-        guard let env = env?.pointee?.pointee else {
+        guard let envPtr = env?.pointee?.pointee else {
             throw NSError(domain: "JavaRuntime", code: -3,
-                        userInfo: [NSLocalizedDescriptionKey: "JVM not initialized"])
+                          userInfo: [NSLocalizedDescriptionKey: "JVM not initialized"])
         }
-        
-        // Prepare launch arguments
+
         let gameDir = version.path.path
         let args = [
             "-Djava.library.path=\(gameDir)/natives",
@@ -100,42 +95,36 @@ final class JVMHost {
             "-Xmx2G",
             "net.minecraft.client.main.Main"
         ]
-        
-        // Find main class
-        let mainClass = try findClass(env: env, name: "net.minecraft.client.main.Main")
-        defer { env.DeleteLocalRef!(env, mainClass) }
-        
-        // Get main method
-        let methodID = env.GetStaticMethodID!(env, mainClass, "main", "([Ljava/lang/String;)V")
-        
-        // Convert arguments to Java String array
-        let stringClass = try findClass(env: env, name: "java.lang.String")
-        defer { env.DeleteLocalRef!(env, stringClass) }
-        
-        let argsArray = env.NewObjectArray!(env, jsize(args.count), stringClass, nil)
-        defer { env.DeleteLocalRef!(env, argsArray) }
-        
+
+        let mainClass = try findClass(env: envPtr, name: "net.minecraft.client.main.Main")
+        defer { env?.pointee?.pointee.DeleteLocalRef?(env, mainClass) }
+
+        let methodID = env?.pointee?.pointee.GetStaticMethodID?(env, mainClass, "main", "([Ljava/lang/String;)V")
+        let stringClass = try findClass(env: envPtr, name: "java.lang.String")
+        defer { env?.pointee?.pointee.DeleteLocalRef?(env, stringClass) }
+
+        let argsArray = env?.pointee?.pointee.NewObjectArray?(env, jsize(args.count), stringClass, nil)
+        defer { env?.pointee?.pointee.DeleteLocalRef?(env, argsArray) }
+
         for (i, arg) in args.enumerated() {
-            let jstr = env.NewStringUTF!(env, arg)
-            env.SetObjectArrayElement!(env, argsArray, jsize(i), jstr)
-            env.DeleteLocalRef!(env, jstr)
+            let jstr = env?.pointee?.pointee.NewStringUTF?(env, arg)
+            env?.pointee?.pointee.SetObjectArrayElement?(env, argsArray, jsize(i), jstr)
+            env?.pointee?.pointee.DeleteLocalRef?(env, jstr)
         }
-        
-        // Invoke main method
-        env.CallStaticVoidMethod!(env, mainClass, methodID, argsArray)
-        
-        // Check for exceptions
-        if let exception = env.ExceptionOccurred!(env) {
-            env.ExceptionClear!(env)
+
+        env?.pointee?.pointee.CallStaticVoidMethod?(env, mainClass, methodID, argsArray)
+
+        if let exception = env?.pointee?.pointee.ExceptionOccurred?(env) {
+            env?.pointee?.pointee.ExceptionClear?(env)
             throw NSError(domain: "JavaRuntime", code: -4,
-                        userInfo: [NSLocalizedDescriptionKey: "Java exception occurred"])
+                          userInfo: [NSLocalizedDescriptionKey: "Java exception occurred"])
         }
     }
-    
+
     private static func findClass(env: UnsafeMutablePointer<JNIEnv>, name: String) throws -> jclass {
-        guard let cls = env.pointee?.pointee.FindClass?(env, name) else {
+        guard let cls = env.pointee?.FindClass?(env, name) else {
             throw NSError(domain: "JavaRuntime", code: -5,
-                        userInfo: [NSLocalizedDescriptionKey: "Class not found: \(name)"])
+                          userInfo: [NSLocalizedDescriptionKey: "Class not found: \(name)"])
         }
         return cls
     }
