@@ -79,57 +79,105 @@ final class JVMHost {
         print("Memory API initialized at: \(memoryAPI)")
     }
 
-    static func launchMinecraft(version: MinecraftVersion, account: MinecraftAccount) throws {
-        guard let envPtr = env?.pointee?.pointee else {
-            throw NSError(domain: "JavaRuntime", code: -3,
-                          userInfo: [NSLocalizedDescriptionKey: "JVM not initialized"])
+    import Foundation
+
+// MARK: - Dynamic Loader
+@_silgen_name("DL_loadLibrary")
+public func DL_loadLibrary(_ path: UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
+
+@_silgen_name("DL_getSymbol")
+public func DL_getSymbol(_ handle: UnsafeMutableRawPointer?, _ symbol: UnsafePointer<CChar>) -> UnsafeMutableRawPointer?
+
+final class RoboVMHost {
+    private static var handle: UnsafeMutableRawPointer?
+
+    /// 1️⃣ Load RoboVM library / static lib
+    static func loadRoboVMLibrary(at path: String) throws {
+        guard handle == nil else { return }
+        guard let libHandle = DL_loadLibrary(path) else {
+            throw NSError(domain: "RoboVMHost", code: -1,
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to load library at \(path)"])
+        }
+        handle = libHandle
+        print("RoboVM library loaded: \(path)")
+    }
+
+    /// 2️⃣ Compile .jar → native executable
+    static func compileJar(at jarPath: String, outputPath: String) throws {
+        guard let handle = handle else {
+            throw NSError(domain: "RoboVMHost", code: -2,
+                          userInfo: [NSLocalizedDescriptionKey: "RoboVM library not loaded"])
         }
 
+        guard let compileSymbol = DL_getSymbol(handle, "RoboVM_CompileJar") else {
+            throw NSError(domain: "RoboVMHost", code: -3,
+                          userInfo: [NSLocalizedDescriptionKey: "Symbol 'RoboVM_CompileJar' not found"])
+        }
+
+        typealias CompileFunc = @convention(c) (UnsafePointer<CChar>, UnsafePointer<CChar>) -> Int32
+        let compileFunc = unsafeBitCast(compileSymbol, to: CompileFunc.self)
+
+        let result = compileFunc(jarPath, outputPath)
+        guard result == 0 else {
+            throw NSError(domain: "RoboVMHost", code: Int(result),
+                          userInfo: [NSLocalizedDescriptionKey: "Failed to compile jar"])
+        }
+
+        print("Jar compiled to native executable: \(outputPath)")
+    }
+
+    /// 3️⃣ Launch Minecraft directly via RoboVM AOT
+    static func launchMinecraft(version: MinecraftVersion, account: MinecraftAccount) throws {
+        // 3a️⃣ Paths
         let gameDir = version.path.path
+        let jarPath = "\(gameDir)/client.jar"
+        let symbolName = "MinecraftMain" // entry symbol exported by RoboVM AOT
         let args = [
             "-Djava.library.path=\(gameDir)/natives",
-            "-Dminecraft.client.jar=\(gameDir)/client.jar",
+            "-Dminecraft.client.jar=\(jarPath)",
             "-Dminecraft.username=\(account.username)",
             "-Dminecraft.uuid=\(account.uuid)",
             "-Dminecraft.accessToken=\(account.accessToken)",
-            "-Xmx2G",
-            "net.minecraft.client.main.Main"
+            "-Xmx2G"
         ]
 
-        let mainClass = try findClass(env: envPtr, name: "net.minecraft.client.main.Main")
-        defer { env?.pointee?.pointee.DeleteLocalRef?(env, mainClass) }
-
-        let methodID = env?.pointee?.pointee.GetStaticMethodID?(env, mainClass, "main", "([Ljava/lang/String;)V")
-        let stringClass = try findClass(env: envPtr, name: "java.lang.String")
-        defer { env?.pointee?.pointee.DeleteLocalRef?(env, stringClass) }
-
-        let argsArray = env?.pointee?.pointee.NewObjectArray?(env, jsize(args.count), stringClass, nil)
-        defer { env?.pointee?.pointee.DeleteLocalRef?(env, argsArray) }
-
-        for (i, arg) in args.enumerated() {
-            let jstr = env?.pointee?.pointee.NewStringUTF?(env, arg)
-            env?.pointee?.pointee.SetObjectArrayElement?(env, argsArray, jsize(i), jstr)
-            env?.pointee?.pointee.DeleteLocalRef?(env, jstr)
+        // 3b️⃣ Ensure library is loaded
+        guard handle != nil else {
+            throw NSError(domain: "RoboVMHost", code: -4,
+                          userInfo: [NSLocalizedDescriptionKey: "RoboVM library not loaded"])
         }
 
-        env?.pointee?.pointee.CallStaticVoidMethod?(env, mainClass, methodID, argsArray)
+        // 3c️⃣ Compile the jar first (AOT)
+        let outputExe = "\(gameDir)/MinecraftAOT"
+        try compileJar(at: jarPath, outputPath: outputExe)
 
-        if let exception = env?.pointee?.pointee.ExceptionOccurred?(env) {
-            env?.pointee?.pointee.ExceptionClear?(env)
-            throw NSError(domain: "JavaRuntime", code: -4,
-                          userInfo: [NSLocalizedDescriptionKey: "Java exception occurred"])
-        }
+        // 3d️⃣ Launch native entry point
+        try launchExecutable(named: symbolName, args: args)
     }
 
-    private static func findClass(env: UnsafeMutablePointer<JNIEnv>, name: String) throws -> jclass {
-        guard let cls = env.pointee?.FindClass?(env, name) else {
-            throw NSError(domain: "JavaRuntime", code: -5,
-                          userInfo: [NSLocalizedDescriptionKey: "Class not found: \(name)"])
+    /// 4️⃣ Generic launcher for any executable (used internally)
+    static func launchExecutable(named symbol: String, args: [String]) throws {
+        guard let handle = handle else {
+            throw NSError(domain: "RoboVMHost", code: -5,
+                          userInfo: [NSLocalizedDescriptionKey: "RoboVM library not loaded"])
         }
-        return cls
+
+        guard let mainSymbol = DL_getSymbol(handle, symbol) else {
+            throw NSError(domain: "RoboVMHost", code: -6,
+                          userInfo: [NSLocalizedDescriptionKey: "Symbol \(symbol) not found"])
+        }
+
+        typealias MainFunc = @convention(c) (Int32, UnsafePointer<UnsafePointer<CChar>?>?) -> Void
+        let mainFunc = unsafeBitCast(mainSymbol, to: MainFunc.self)
+
+        let cStrings = args.map { strdup($0) }
+        defer { cStrings.forEach { free($0) } }
+
+        cStrings.withUnsafeBufferPointer { buffer in
+            mainFunc(Int32(buffer.count), buffer.baseAddress)
+        }
     }
 }
-
 // MARK: - Minecraft Data Models
 struct MinecraftVersion: Identifiable {
     let id: String
