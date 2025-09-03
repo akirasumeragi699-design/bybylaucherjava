@@ -16,8 +16,7 @@
 		202648A82E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 202648A72E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift */; };
 		202648B62E37A2F500B9E39F /* AuthenticationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B52E37A2F500B9E39F /* AuthenticationServices.framework */; };
 		202648B82E37A30300B9E39F /* UniformTypeIdentifiers.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 202648B72E37A30300B9E39F /* UniformTypeIdentifiers.framework */; };
-		A1B2C3D4E5F6G7H800000004 /* DymanicLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */; };
-		A1B2C3D4E5F6G7H800000005 /* FAKE_JNI_LOADER.m in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */; };
+		227E40062E66A82500FD91AC /* DynamicLoader.m in Sources */ = {isa = PBXBuildFile; fileRef = 227E40052E66A82500FD91AC /* DynamicLoader.m */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -50,11 +49,10 @@
 		202648A72E37A0FB00B9E39F /* bybylaucherjavaUITestsLaunchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = bybylaucherjavaUITestsLaunchTests.swift; sourceTree = "<group>"; };
 		202648B52E37A2F500B9E39F /* AuthenticationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = AuthenticationServices.framework; path = System/Library/Frameworks/AuthenticationServices.framework; sourceTree = SDKROOT; };
 		202648B72E37A30300B9E39F /* UniformTypeIdentifiers.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = UniformTypeIdentifiers.framework; path = System/Library/Frameworks/UniformTypeIdentifiers.framework; sourceTree = SDKROOT; };
+		227E40042E66A82500FD91AC /* DynamicLoader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = DynamicLoader.h; path = bybylaucherjava/DynamicLoader.h; sourceTree = SOURCE_ROOT; };
+		227E40052E66A82500FD91AC /* DynamicLoader.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = DynamicLoader.m; path = bybylaucherjava/DynamicLoader.m; sourceTree = SOURCE_ROOT; };
 		5D927DC0313378DA0EA96447 /* Pods-bybylaucherjava.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-bybylaucherjava.debug.xcconfig"; path = "Target Support Files/Pods-bybylaucherjava/Pods-bybylaucherjava.debug.xcconfig"; sourceTree = "<group>"; };
 		8BB13A6A192CC148B83803C0 /* Pods-bybylaucherjava.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-bybylaucherjava.release.xcconfig"; path = "Target Support Files/Pods-bybylaucherjava/Pods-bybylaucherjava.release.xcconfig"; sourceTree = "<group>"; };
-		A1B2C3D4E5F6G7H800000001 /* DymanicLoader.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = DymanicLoader.h; sourceTree = "<group>"; };
-		A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = DymanicLoader.m; sourceTree = "<group>"; };
-		A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = FAKE_JNI_LOADER.m; sourceTree = "<group>"; };
 		EB464C90C17CDAE712C1E93F /* Pods_bybylaucherjava.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_bybylaucherjava.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -114,10 +112,9 @@
 				201D7AE82E386EE700800520 /* bybylaucherjava.entitlements */,
 				2026488A2E37A0F900B9E39F /* bybylaucherjavaApp.swift */,
 				2026488E2E37A0FB00B9E39F /* Assets.xcassets */,
+				227E40042E66A82500FD91AC /* DynamicLoader.h */,
+				227E40052E66A82500FD91AC /* DynamicLoader.m */,
 				202648902E37A0FB00B9E39F /* Preview Content */,
-				A1B2C3D4E5F6G7H800000001 /* DymanicLoader.h */,
-				A1B2C3D4E5F6G7H800000002 /* DymanicLoader.m */,
-				A1B2C3D4E5F6G7H800000003 /* FAKE_JNI_LOADER.m */,
 			);
 			path = bybylaucherjava;
 			sourceTree = "<group>";
@@ -342,8 +339,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				2026488B2E37A0F900B9E39F /* bybylaucherjavaApp.swift in Sources */,
-				A1B2C3D4E5F6G7H800000004 /* DymanicLoader.m in Sources */,
-    				A1B2C3D4E5F6G7H800000005 /* FAKE_JNI_LOADER.m in Sources */,
+				227E40062E66A82500FD91AC /* DynamicLoader.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -502,15 +498,17 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = bybylaucherjava/bybylaucherjava.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"bybylaucherjava/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SZ2D7F8WB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				"HEADER_SEARCH_PATHS[arch=*]" = (
-					"$(PROJECT_DIR)/jre17-arm64-20220817-release/include\n$(PROJECT_DIR)/jre17-arm64-20220817-release/include/darwin\n",
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_CONFIGURATION_BUILD_DIR}/ZIPFoundation/ZIPFoundation.framework/Headers\"",
+					"\"cd \\\"${PROJECT_DIR}/robovm\\\" && IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path) && xcrun clang -arch arm64 -isysroot $IOS_SDK src/*.c src/*.m -c -o build.o && xcrun ar rcs libRoboVM.a build.o && echo \\\"RoboVM static library built at $(pwd)/libRoboVM.a\\\"\"",
 				);
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -542,15 +540,17 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = bybylaucherjava/bybylaucherjava.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"bybylaucherjava/Preview Content\"";
 				DEVELOPMENT_TEAM = 7SZ2D7F8WB;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				"HEADER_SEARCH_PATHS[arch=*]" = (
-					"$(PROJECT_DIR)/jre17-arm64-20220817-release/include\n$(PROJECT_DIR)/jre17-arm64-20220817-release/include/darwin\n",
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_CONFIGURATION_BUILD_DIR}/ZIPFoundation/ZIPFoundation.framework/Headers\"",
+					"\"cd \\\"${PROJECT_DIR}/robovm\\\" && IOS_SDK=$(xcrun --sdk iphoneos --show-sdk-path) && xcrun clang -arch arm64 -isysroot $IOS_SDK src/*.c src/*.m -c -o build.o && xcrun ar rcs libRoboVM.a build.o && echo \\\"RoboVM static library built at $(pwd)/libRoboVM.a\\\"\"",
 				);
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

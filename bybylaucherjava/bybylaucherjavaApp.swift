@@ -39,7 +39,7 @@ final class JVMHost {
     static func initialize() throws {
         guard !isInitialized else { return }
 
-        guard let libHandle = DL_loadLibrary("libjava.a") else {
+        guard let libHandle = DL_loadLibrary("libRoboVM.a") else {
             throw NSError(domain: "JavaRuntime", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: "Failed to load libjava.a"])
         }
